@@ -1,0 +1,9 @@
+
+pip install ruff
+ruff format main.py
+
+pip install djlint
+python -m djlint your_template.html --reformat --profile jinja --format-js --format-css
+
+
+

@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <title>SNMP トラフィックモニター</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                background-color: #ffffff;
+                color: #333333;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+                box-sizing: border-box;
+            }
+
+            h5,
+            h4 {
+                margin-top: 0;
+                margin-bottom: 10px;
+            }
+            {% set header_height = "480px" %}
+
+            .sticky-header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background-color: #ffffff;
+                z-index: 1000;
+                padding: 20px 20px 10px 20px;
+                border-bottom: 2px solid #eee;
+                box-sizing: border-box;
+            }
+
+            .mode-tab {
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: #f7f7f7;
+                border: 1px solid #ddd;
+            }
+
+            .mode-tab a {
+                margin-right: 15px;
+                text-decoration: none;
+                font-weight: bold;
+                color: #0066cc;
+            }
+
+            .mode-tab a.active {
+                color: #333333;
+                pointer-events: none;
+                border-bottom: 2px solid #333333;
+            }
+
+            .filter-form {
+                background-color: #f0f0f0;
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 15px;
+                border: 1px solid #ccc;
+            }
+
+            .form-group {
+                display: inline-block;
+                margin-right: 15px;
+                margin-bottom: 10px;
+                vertical-align: top;
+            }
+
+            .form-group label {
+                display: block;
+                font-size: 0.85em;
+                font-weight: bold;
+                margin-bottom: 3px;
+            }
+
+            select,
+            input[type="date"],
+            input[type="text"] {
+                padding: 4px;
+                font-size: 0.9em;
+            }
+
+            .btn-submit {
+                padding: 5px 15px;
+                font-size: 0.9em;
+                background-color: #4df;
+                border: 1px solid #3bc;
+                border-radius: 3px;
+                cursor: pointer;
+                font-weight: bold;
+            }
+
+            .btn-submit:hover {
+                background-color: #3cf;
+            }
+
+            .container {
+                display: flex;
+                gap: 20px;
+                align-items: flex-start;
+                flex-grow: 1;
+                margin-top: 460px;
+                padding: 0 20px 20px 20px;
+                box-sizing: border-box;
+            }
+
+            .sidebar {
+                width: 280px;
+                min-width: 280px;
+                position: sticky;
+                top: {{header_height}};
+                max-height: calc(100vh - 330px);
+                overflow-y: auto;
+                background: #fafafa;
+                border: 1px solid #ddd;
+                padding: 10px;
+                border-radius: 4px;
+            }
+
+            .main-content {
+                flex-grow: 1;
+            }
+
+            .grid-1 {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .grid-2 {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+
+            .grid-4 {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+            }
+
+            .graph-card {
+                border: 1px solid #ddd;
+                background-color: #fafafa;
+                padding: 8px;
+                border-radius: 4px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                margin-bottom: 15px;
+                scroll-margin-top: {{header_height}};
+            }
+
+            .graph-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 5px;
+            }
+
+            .graph-img {
+                width: 100%;
+                height: auto;
+                display: block;
+                background-color: #fff;
+            }
+
+            .btn-reg {
+                padding: 2px 6px;
+                font-size: 0.75em;
+                cursor: pointer;
+            }
+
+
+
+            .popup-header {
+                padding: 10px;
+                cursor: move;
+                /* マウスカーソルを移動用に変更 */
+                background-color: #f1f1f1;
+                color: #333;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #ddd;
+                user-select: none;
+                /* テキスト選択を無効化 */
+            }
+
+            .popup-title {
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .close-btn {
+                background: #e74c3c;
+                color: white;
+                border: none;
+                padding: 4px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+
+            .close-btn:hover {
+                background: #c0392b;
+            }
+
+            .draggable-popup {
+                display: none;
+                /* 初期状態は非表示 */
+                position: fixed;
+                z-index: 9999;
+                /* 最前面に表示 */
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+                width: 600px;
+                /* 横幅は固定、またはお好みの幅に指定 */
+
+                height: max-content;
+
+                overflow: hidden;
+            }
+
+            .popup-body {
+                padding: 15px;
+
+                height: auto;
+
+                box-sizing: border-box;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .popup-body img {
+                width: 100%;
+
+                height: auto;
+
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sticky-header">
+            <h5>📊 SNMP トラフィックモニター (5分間隔差分)</h5>
+            <form method="get" action="/">
+                <div class="base-selector-zone"
+                     style="margin-bottom: 20px;
+                            padding: 15px;
+                            background-color: #e9ecef;
+                            border-radius: 6px;
+                            border-left: 5px solid #007bff">
+                    <label for="base_id"
+                           style="font-weight: bold;
+                                  margin-right: 10px;
+                                  color: #333">📊 監視データルート (BASE_DIR) の切り替え:</label>
+                    <select id="base_id"
+                            name="base_id"
+                            onchange="this.form.submit();"
+                            style="padding: 6px 12px;
+                                   font-size: 14px;
+                                   border-radius: 4px;
+                                   border: 1px solid #ccc;
+                                   font-weight: bold">
+                        {% for b_id in base_ids %}
+                            <option value="{{ b_id }}"
+                                    {% if b_id == selected_base_id %}selected{% endif %}>{{ b_id }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mode-selector-zone"
+                     style="margin-bottom: 15px;
+                            display: flex;
+                            gap: 10px">
+                    <button type="button"
+                            onclick="document.getElementById('hidden_mode').value='single'; this.form.submit();"
+                            style="padding: 8px 16px;
+                                   font-weight: bold;
+                                   border-radius: 4px;
+                                   border: 1px solid #ccc;
+                                   cursor: pointer;
+                                   background-color: {% if current_mode == 'single' %}#007bff{% else %}#ffffff{% endif %};
+                                   color: {% if current_mode == 'single' %}#ffffff{% else %}#333333{% endif %}">
+                        📅 単日モード (single)
+                    </button>
+                    <button type="button"
+                            onclick="document.getElementById('hidden_mode').value='range'; this.form.submit();"
+                            style="padding: 8px 16px;
+                                   font-weight: bold;
+                                   border-radius: 4px;
+                                   border: 1px solid #ccc;
+                                   cursor: pointer;
+                                   background-color: {% if current_mode == 'range' %}#007bff{% else %}#ffffff{% endif %};
+                                   color: {% if current_mode == 'range' %}#ffffff{% else %}#333333{% endif %}">
+                        📆 期間指定モード (range)
+                    </button>
+                </div>
+                <div class="nav-links" style="margin-bottom: 15px;">
+                    <a href="/report?base_id={{ selected_base_id }}&yyyymm={{ selected_yyyymm }}&dd={{ selected_dd }}&switch={{ selected_switch }}&filename={{ filename }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}"
+                       class="btn btn-sm btn-outline-info"
+                       target="_blank">📋 分析レポート</a>
+                    <a href="/report_monthly?base_id={{ selected_base_id }}&yyyymm={{ selected_yyyymm }}&switch={{ selected_switch }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}"
+                       class="btn btn-warning fw-bold text-dark ms-2"
+                       target="_blank">📊 スイッチ月間レポート1</a>
+                    <a href="/report_monthly2?base_id={{ selected_base_id }}&yyyymm={{ selected_yyyymm }}&switch={{ selected_switch }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}"
+                       class="btn btn-warning fw-bold text-dark ms-2"
+                       target="_blank">📊 スイッチ月間レポート2</a>
+                    <a href="/timeseries_board2?base_id={{ selected_base_id }}" class="btn">📊 タイムシリーズ2</a>
+                    <a href="/timeseries_board3?base_id={{ selected_base_id }}" class="btn">📊 タイムシリーズ3</a>
+                    <a href="/timeseries_board5?base_id={{ selected_base_id }}" class="btn">📊 タイムシリーズ5</a>
+                    <a href="/dashboard?base_id={{ selected_base_id }}" class="btn">📊 登録済みのダッシュボードを見る</a>
+                    <a href="/snapshots?base_id={{ selected_base_id }}" class="btn">スナップショットボードを見る</a>
+                    <a href="/anomaly_dashboard?base_id={{ selected_base_id }}"
+                       class="btn">🔍 Merlion 異常検知トラフィックモニター画面へ移動する</a>
+                </div>
+                <div style="background-color: #f8f9fa;
+                            padding: 15px;
+                            border-radius: 6px;
+                            border: 1px solid #ddd;
+                            margin-bottom: 20px">
+                    <input type="hidden" name="mode" id="hidden_mode" value="{{ current_mode }}">
+                    <div style="margin-bottom: 10px;">
+                        {% if current_mode == "single" %}
+                            <label style="font-weight: bold; margin-right: 5px;">対象月:</label>
+                            <select name="yyyymm" onchange="this.form.submit();">
+                                {% for yyyymm in date_tree.keys() %}
+                                    <option value="{{ yyyymm }}"
+                                            {% if yyyymm == selected_yyyymm %}selected{% endif %}>
+                                        {{ yyyymm[:4] }}年{{ yyyymm[4:] }}月
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <label style="font-weight: bold; margin-right: 5px;">対象日:</label>
+                            <select name="dd">
+                                {% for dd in available_dds %}
+                                    <option value="{{ dd }}"
+                                            {% if dd|string == selected_dd|string %}selected{% endif %}>
+                                        {{ dd }}日
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% else %}
+                            <label style="font-weight: bold; margin-right: 5px;">開始日:</label>
+                            <input type="date"
+                                   name="start_dd"
+                                   value="{{ selected_start_dd or yesterday }}"
+                                   style="padding: 4px;
+                                          font-size: 14px;
+                                          border-radius: 4px;
+                                          border: 1px solid #ccc;
+                                          margin-right: 15px">
+                            <label style="font-weight: bold; margin-right: 5px;">終了日:</label>
+                            <input type="date"
+                                   name="end_dd"
+                                   value="{{ selected_end_dd or today }}"
+                                   style="padding: 4px;
+                                          font-size: 14px;
+                                          border-radius: 4px;
+                                          border: 1px solid #ccc;
+                                          margin-right: 15px">
+                        {% endif %}
+                        <label style="font-weight: bold; margin-right: 5px;">対象スイッチ:</label>
+                        <select name="switch">
+                            {% for sw in switches %}
+                                <option value="{{ sw }}"
+                                        {% if sw == selected_switch %}selected{% endif %}>{{ sw }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-weight: bold; margin-right: 5px;">開始（時）:</label>
+                        <select name="start_hour">
+                            {% for h in range(0, 24) %}
+                                <option value="{{ h }}" {% if h == start_hour %}selected{% endif %}>{{ h }} 時</option>
+                            {% endfor %}
+                        </select>
+                        <label style="font-weight: bold; margin-right: 5px;">終了（時）:</label>
+                        <select name="end_hour">
+                            {% for h in range(0, 24) %}
+                                <option value="{{ h }}" {% if h == end_hour %}selected{% endif %}>{{ h }} 時</option>
+                            {% endfor %}
+                        </select>
+                        <label style="font-weight: bold; margin-right: 5px;">グラフ列数:</label>
+                        <select name="cols">
+                            <option value="1" {% if selected_cols == 1 %}selected{% endif %}>1 列表示</option>
+                            <option value="2" {% if selected_cols == 2 %}selected{% endif %}>2 列表示 (標準)</option>
+                            <option value="4" {% if selected_cols == 4 %}selected{% endif %}>4 列並び</option>
+                        </select>
+                    </div>
+                    <button type="submit"
+                            style="padding: 6px 20px;
+                                   font-weight: bold;
+                                   background-color: #28a745;
+                                   color: white;
+                                   border: none;
+                                   border-radius: 4px;
+                                   cursor: pointer">条件を更新</button>
+                </div>
+                <input type="hidden"
+                       id="form-open-popup"
+                       name="open_popup"
+                       value="{{ request.query_params.get('open_popup') or '' }}">
+                <input type="hidden"
+                       id="form-popup-top"
+                       name="popup_top"
+                       value="{{ request.query_params.get('popup_top') or '' }}">
+                <input type="hidden"
+                       id="form-popup-left"
+                       name="popup_left"
+                       value="{{ request.query_params.get('popup_left') or '' }}">
+                <input type="hidden"
+                       id="form-popup-width"
+                       name="popup_width"
+                       value="{{ request.query_params.get('popup_width') or '' }}">
+                <input type="hidden"
+                       id="form-popup-height"
+                       name="popup_height"
+                       value="{{ request.query_params.get('popup_height') or '' }}">
+            </form>
+            {% if csv_filenames %}
+                <div style="background-color: #eef;
+                            padding: 10px;
+                            border-radius: 4px;
+                            font-size: 0.9em;
+                            border: 1px solid #ccd;
+                            display: flex;
+                            align-items: center;
+                            gap: 15px">
+                    <div>
+                        🔍 グラフを絞り込み:
+                        <input type="text"
+                               id="filter-input"
+                               placeholder="インターフェース名や説明を入力..."
+                               style="width: 250px;
+                                      padding: 4px">
+                    </div>
+                    <div id="filter-status" style="font-weight: bold; color: #555;">
+                        表示中: {{ csv_filenames|length }} / {{ csv_filenames|length }} 件
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        <div class="container">
+            {% if csv_filenames %}
+                <div class="sidebar">
+                    <h4 style="margin-top: 0;">📋 グラフ目次</h4>
+                    <ul id="sidebar-menu"
+                        style="font-size: 0.85em;
+                               line-height: 1.6;
+                               padding-left: 5px;
+                               margin: 0;
+                               list-style-type: none">
+                        {% for filename in csv_filenames %}
+                            {% set ns = namespace() %}
+                            {% set ns.interface = filename | replace('.csv','') %}
+                            {% set ns.desc = "" %}
+                            {% if ns.interface in info_dic %}
+                                {% set ns.desc = info_dic[ns.interface].desc %}
+                            {% endif %}
+                            <li class="menu-item"
+                                data-search="{{ ns.interface | lower }} {{ ns.desc | lower }}">
+                                <a href="#graph-{{ ns.interface }}"
+                                   style="color: #0066cc;
+                                          text-decoration: none">{{ ns.interface }} <span style="color: #666; font-size: 0.9em;">{{ ns.desc }}</span></a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+            <div class="main-content">
+                {% if csv_filenames %}
+                    <div class="{% if selected_cols == 1 %}grid-1{% elif selected_cols == 4 %}grid-4{% else %}grid-2{% endif %}"
+                         id="graph-grid">
+                        {% for filename in csv_filenames %}
+                            {% set ns = namespace(is_registered=false) %}
+                            {% set ns.interface = filename | replace('.csv','') %}
+                            {% set ns.desc = "" %}
+                            {% if ns.interface in info_dic %}
+                                {% set ns.desc = info_dic[ns.interface].desc %}
+                                {% set ns.speed = info_dic[ns.interface].speed %}
+                            {% endif %}
+                            {% for item in registry %}
+                                {% if item.yyyymm == selected_yyyymm and item.dd == selected_dd and item.switch == selected_switch and item.filename == filename %}
+                                    {% set ns.is_registered = true %}
+                                {% endif %}
+                            {% endfor %}
+                            <div class="graph-card"
+                                 id="graph-{{ ns.interface }}"
+                                 data-search="{{ ns.interface | lower }} {{ ns.desc | lower }}">
+                                <div class="graph-header">
+                                    <span style="font-weight: bold; font-size: 0.9em;">{{ ns.interface }}
+                                        {% if ns.speed %}
+                                            <span style="color: #000; font-weight: normal; margin-left: 10px">{{ ns.speed | int // 1000 }}Gbps</span>
+                                        {% endif %}
+                                        {% if ns.desc %}
+                                            <span style="color: #555; font-weight: normal; margin-left: 20px">{{ ns.desc }}</span>
+                                        {% endif %}
+                                    </span>
+                                    <form method="post"
+                                          action="/dashboard/add"
+                                          style="margin: 0"
+                                          onsubmit="registerDashboard(event, this)">
+                                        <input type="hidden" name="base_id" value="{{ selected_base_id }}">
+                                        <input type="hidden" name="yyyymm" value="{{ selected_yyyymm }}">
+                                        <input type="hidden" name="dd" value="{{ selected_dd }}">
+                                        <input type="hidden" name="switch" value="{{ selected_switch }}">
+                                        <input type="hidden" name="filename" value="{{ filename }}">
+                                        <input type="hidden" name="desc" value="{{ ns.desc }}">
+                                        {% if ns.is_registered %}
+                                            <button type="button"
+                                                    class="btn-reg"
+                                                    style="background-color: #0080ff;
+                                                           color: #ffffff;
+                                                           border: 1px solid #0080ff"
+                                                    disabled>登録中</button>
+                                        {% else %}
+                                            <button type="submit"
+                                                    class="btn-reg btn-reg-submit"
+                                                    style="background-color: #e1f5fe;
+                                                           border: 1px solid #b3e5fc;
+                                                           color: #0288d1">＋ ダッシュボード登録</button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+                                <img class="graph-img monitor-chart"
+                                     data-switch="{{ selected_switch }}"
+                                     data-filename="{{ filename }}"
+                                     data-desc="{{ ns.desc }}"
+                                     src="/plot?base_id={{ selected_base_id }}&mode={{ current_mode }}&yyyymm={{ selected_yyyymm }}&dd={{ selected_dd }}&start_dd={{ selected_start_dd }}&end_dd={{ selected_end_dd }}&switch={{ selected_switch }}&filename={{ filename }}&cols={{ selected_cols }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}&desc={{ ns.desc | urlencode }}&speed={{ ns.speed }}"
+                                     alt="読み込み中..."
+                                     loading="lazy"
+                                     width="800"
+                                     height="300"
+                                     style="aspect-ratio: 800 / 300;
+                                            width: 100%;
+                                            height: auto;
+                                            background-color: #fdfdfd">
+                                <button type="button"
+                                        class="snapshot-btn"
+                                        style="margin-top:5px;
+                                               background-color:#28a745;
+                                               color:white;
+                                               border:none;
+                                               padding:5px 10px;
+                                               border-radius:3px;
+                                               cursor:pointer"
+                                        data-interface="{{ filename | replace('.csv', '') | trim }}"
+                                        data-desc="{{ ns.desc | trim }}">📸 スナップショット一時保存</button>
+                                <button class="popup-btn"
+                                        onclick="openPopup('{{ loop.index }}', '{{ filename }}', this)">🔲 別窓で開く</button>
+                            </div>
+                            {% set popup_list = (request.query_params.get('open_popup') or '').split(',') %}
+                            {% set top_list = (request.query_params.get('popup_top') or '').split(',') %}
+                            {% set left_list = (request.query_params.get('popup_left') or '').split(',') %}
+                            {% set width_list = (request.query_params.get('popup_width') or '').split(',') %}
+                            {% set height_list = (request.query_params.get('popup_height') or '').split(',') %}
+                            {% set my_top = "150px" %}
+                            {% set my_left = "100px" %}
+                            {% set my_width = "600px" %}
+                            {% set my_height = "max-content" %}
+                            {% if filename in popup_list %}
+                                {% set my_idx = popup_list.index(filename) %}
+                                {% if top_list|length > my_idx %}
+                                    {% set my_top = top_list[my_idx] %}
+                                {% endif %}
+                                {% if left_list|length > my_idx %}
+                                    {% set my_left = left_list[my_idx] %}
+                                {% endif %}
+                                {% if width_list|length > my_idx %}
+                                    {% set my_width = width_list[my_idx] %}
+                                {% endif %}
+                                {% if height_list|length > my_idx %}
+                                    {% set my_height = height_list[my_idx] %}
+                                {% endif %}
+                            {% endif %}
+                            <div id="popup-{{ loop.index }}"
+                                 class="draggable-popup"
+                                 data-filename="{{ filename }}"
+                                 style="display: {% if filename in popup_list %}block{% else %}none{% endif %};
+                                        position: fixed;
+                                        z-index: 9999;
+                                        top: {{ my_top }};
+                                        left: {{ my_left }};
+                                        width: {{ my_width }};
+                                        height: {{ my_height }};
+                                        resize: both;
+                                        overflow: hidden;
+                                        min-width: 300px;
+                                        min-height: 200px">
+                                <div class="popup-header" id="popup-header-{{ loop.index }}">
+                                    <span class="popup-title">
+                                        <span style="background-color: #0080ff;
+                                                     color: #ffffff;
+                                                     padding: 0 5px;
+                                                     border-radius: 10px">{{ selected_switch }}</span>
+                                        &nbsp;
+                                        &nbsp;
+                                        <span style="color: #3399ff;">{{ ns.interface }}</span>
+                                        &nbsp;
+                                    {% if ns.desc %}({{ ns.desc }}){% endif %}</span>
+                                    <button class="close-btn"
+                                            onclick="document.getElementById('popup-{{ loop.index }}').style.display='none'">✕ 閉じる</button>
+                                </div>
+                                <div class="popup-body">
+                                    <img id="popup-img-{{ loop.index }}"
+                                         src="/plot?base_id={{ selected_base_id }}&mode={{ current_mode }}&yyyymm={{ selected_yyyymm }}&dd={{ selected_dd }}&switch={{ selected_switch }}&filename={{ filename }}&cols={{ selected_cols }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}&desc={{ ns.desc|urlencode }}&speed={{ ns.speed|default('') }}&start_dd={{ selected_start_dd }}&end_dd={{ selected_end_dd }}"
+                                         alt="グラフ画像"
+                                         style="width: 100%;
+                                                height: auto;
+                                                display: block">
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="padding: 20px;
+                                background-color: #fff3f3;
+                                border: 1px solid #ffcdd2;
+                                color: #c62828;
+                                border-radius: 4px">
+                        選択された条件（{{ selected_yyyymm }}/{{ selected_dd }} - {{ selected_switch or 'スイッチなし' }}）のディレクトリ内にCSVファイルが見つかりません。
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const filterInput = document.getElementById('filter-input');
+                if (!filterInput) return;
+
+                const graphCards = document.querySelectorAll('.graph-card');
+                const menuItems = document.querySelectorAll('.menu-item');
+                const filterStatus = document.getElementById('filter-status');
+                const totalCount = graphCards.length;
+
+                filterInput.addEventListener('input', function() {
+                    const rawQuery = this.value.toLowerCase().trim();
+                    let visibleCount = 0;
+
+                    if (rawQuery === "") {
+                        // 検索ワードが空なら全表示
+                        graphCards.forEach(card => card.style.display = '');
+                        menuItems.forEach(item => item.style.display = '');
+                        filterStatus.textContent = `表示中: ${totalCount} / ${totalCount} 件`;
+                        return;
+                    }
+
+                    // 💡 ユーザーの入力からアスタリスクを正規表現のワイルドカード(.*)に変換する
+                    // エスケープ処理を挟みつつ、"*" を ".*" に置き換えます
+                    const escapedQuery = rawQuery.replace(/[-\/\\^\$+.()|[\]{}]/g, '\\$&');
+                    const regexStr = escapedQuery.replace(/\*/g, '.*');
+
+                    try {
+                        const regex = new RegExp(regexStr);
+
+                        // グラフカードのフィルタリング
+                        graphCards.forEach(card => {
+                            const searchSpace = card.getAttribute('data-search');
+                            if (regex.test(searchSpace)) {
+                                card.style.display = '';
+                                visibleCount++;
+                            } else {
+                                card.style.display = 'none';
+                            }
+                        });
+
+                        // サイドバー目次のフィルタリング
+                        menuItems.forEach(item => {
+                            const searchSpace = item.getAttribute('data-search');
+                            if (regex.test(searchSpace)) {
+                                item.style.display = '';
+                            } else {
+                                item.style.display = 'none';
+                            }
+                        });
+
+                        // 件数ステータスの更新
+                        filterStatus.textContent = `表示中: ${visibleCount} / ${totalCount} 件`;
+
+                    } catch (e) {
+                        // 入力途中で不正な正規表現になった場合のフォールバック（エラーで画面を止めない）
+                        console.log("検索クエリのパースをスキップ中...");
+                    }
+                });
+            });
+        </script>
+        <script>
+            function registerDashboard(event, formElement) {
+
+                event.preventDefault();
+                const formData = new FormData(formElement);
+                fetch(formElement.action, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            const submitBtn = formElement.querySelector('.btn-reg-submit');
+                            if (submitBtn) {
+                                submitBtn.type = 'button';
+                                submitBtn.disabled = true;
+                                submitBtn.style.backgroundColor = '#0080ff';
+                                submitBtn.style.borderColor = '#0080ff';
+                                submitBtn.style.color = '#ffffff';
+                                submitBtn.textContent = '登録中';
+                            }
+                        } else {
+                            alert('ダッシュボードへの登録に失敗しました。');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('通信エラーが発生しました。');
+                    });
+            }
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+
+                async function refreshPageContainer(event) {
+                    if (event) {
+                        event.preventDefault(); // フォーム送信による画面リロード（トップ移動）を完全に阻止
+                        event.stopPropagation();
+                    }
+
+                    const currentScrollY = window.scrollY || window.pageYOffset;
+
+                    const form = document.querySelector('form') || document.getElementById('select_yyyymm')?.form;
+                    if (!form) return;
+
+                    const formData = new FormData(form);
+                    const params = new URLSearchParams();
+                    for (const [key, value] of formData.entries()) {
+                        params.append(key, value);
+                    }
+
+                    if (!params.has('mode')) {
+                        params.append('mode', "{{ current_mode }}");
+                    }
+
+                    try {
+                        const targetUrl = `/?${params.toString()}`;
+                        const response = await fetch(targetUrl);
+                        if (!response.ok) throw new Error('ネットワークエラーが発生しました');
+
+                        const htmlText = await response.text();
+
+                        const parser = new DOMParser();
+                        const newDoc = parser.parseFromString(htmlText, 'text/html');
+
+                        document.body.innerHTML = newDoc.body.innerHTML;
+
+                        window.scrollTo(0, currentScrollY);
+
+                        requestAnimationFrame(() => {
+                            window.scrollTo(0, currentScrollY);
+                        });
+
+                        rebindEvents();
+
+                    } catch (error) {
+                        console.error("[エラー] グラフの非同期更新に失敗しました:", error);
+                        form.submit();
+                    }
+                }
+
+                function rebindEvents() {
+                    const monthSelect = document.querySelector('select[name="yyyymm"]');
+                    const daySelect = document.querySelector('select[name="dd"]');
+                    const updateBtn = document.getElementById('btn_update_submit') || document.querySelector('button[type="submit"]');
+
+                    if (monthSelect) {
+                        monthSelect.onchange = null;
+                        monthSelect.addEventListener('change', refreshPageContainer);
+                    }
+                    if (daySelect) {
+                        daySelect.onchange = null;
+                        daySelect.addEventListener('change', refreshPageContainer);
+                    }
+                    if (updateBtn) {
+                        updateBtn.addEventListener('click', refreshPageContainer);
+                    }
+                }
+
+                rebindEvents();
+            });
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+
+                document.addEventListener('click', function(event) {
+
+                    if (event.target && event.target.classList.contains('snapshot-btn')) {
+                        const button = event.target;
+
+
+                        const cardElement = button.closest('.graph-card') || button.parentElement;
+                        const imgElement = cardElement.querySelector('.monitor-chart');
+
+                        if (!imgElement) {
+                            alert('エラー: 連動するグラフ画像が見つかりません。');
+                            return;
+                        }
+
+                        const interfaceName = button.getAttribute('data-interface');
+                        const desc = button.getAttribute('data-desc') || '';
+                        const imgSrc = imgElement.src; // 変更後の最新のURL（日付・スイッチ反映後）を動的にキャッチ
+
+                        let snapshots = JSON.parse(localStorage.getItem('traffic_snapshots')) || [];
+
+                        if (snapshots.some(s => s.imgSrc === imgSrc)) {
+                            alert('このグラフは既にスナップショットに登録されています。');
+                            return;
+                        }
+
+                        snapshots.push({
+                            interface: interfaceName,
+                            desc: desc,
+                            imgSrc: imgSrc,
+                            timestamp: new Date().toLocaleString()
+                        });
+
+                        localStorage.setItem('traffic_snapshots', JSON.stringify(snapshots));
+                        alert(`[${interfaceName}] の最新グラフをスナップショットに保存しました！`);
+                    }
+                });
+            });
+        </script>
+        <script>
+            function bringToFront(selectedPopup) {
+                document.querySelectorAll('.draggable-popup').forEach(p => {
+                    p.style.zIndex = "9998";
+                });
+                selectedPopup.style.zIndex = "9999";
+            }
+
+            function syncAllPopupsToForm() {
+                const openPopups = [];
+                const tops = [];
+                const lefts = [];
+                const widths = [];
+                const heights = [];
+
+                document.querySelectorAll('.draggable-popup').forEach(popup => {
+                    if (popup.style.display === "block") {
+                        const filename = popup.getAttribute('data-filename');
+                        if (filename) {
+                            openPopups.push(filename);
+                            tops.push(popup.style.top || '150px');
+                            lefts.push(popup.style.left || '100px');
+                            // 💡 現在引き伸ばされている実際の横幅・縦幅のサイズ(px)を取得
+                            widths.push(popup.style.width || popup.offsetWidth + 'px');
+                            heights.push(popup.style.height || popup.offsetHeight + 'px');
+                        }
+                    }
+                });
+
+                const formOpen = document.getElementById('form-open-popup');
+                const formTop = document.getElementById('form-popup-top');
+                const formLeft = document.getElementById('form-popup-left');
+                const formWidth = document.getElementById('form-popup-width');
+                const formHeight = document.getElementById('form-popup-height');
+
+                if (formOpen && formTop && formLeft && formWidth && formHeight) {
+                    formOpen.value = openPopups.join(',');
+                    formTop.value = tops.join(',');
+                    formLeft.value = lefts.join(',');
+                    formWidth.value = widths.join(',');
+                    formHeight.value = heights.join(',');
+                }
+            }
+
+            let activeDragEl = null;
+            let pos1 = 0,
+                pos2 = 0,
+                pos3 = 0,
+                pos4 = 0;
+
+            document.addEventListener('mousedown', function(e) {
+                const header = e.target.closest('.popup-header');
+                if (!header) return;
+
+                if (e.target.classList.contains('close-btn') || e.target.tagName === 'BUTTON') return;
+
+                const popup = header.closest('.draggable-popup');
+                if (!popup) return;
+
+                e.preventDefault();
+                activeDragEl = popup;
+                bringToFront(popup);
+
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!activeDragEl) return;
+
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+
+                activeDragEl.style.top = (activeDragEl.offsetTop - pos2) + "px";
+                activeDragEl.style.left = (activeDragEl.offsetLeft - pos1) + "px";
+            });
+
+            document.addEventListener('mouseup', function() {
+                syncAllPopupsToForm();
+                activeDragEl = null;
+            });
+
+            function openPopup(index, filename) {
+                const popup = document.getElementById(`popup-${index}`);
+                if (!popup) return;
+
+                popup.style.display = "block";
+                popup.setAttribute('data-filename', filename);
+
+                if (!popup.style.top || popup.style.top === "") {
+                    popup.style.top = "150px";
+                    const openCount = Array.from(document.querySelectorAll('.draggable-popup')).filter(p => p.style.display === "block").length;
+                    popup.style.left = (100 + openCount * 25) + "px";
+                    popup.style.width = "600px"; // 初期幅
+                    popup.style.height = "max-content"; // 初期高さ
+                }
+
+                bringToFront(popup);
+                syncAllPopupsToForm();
+            }
+
+            function closePopup(index) {
+                const popup = document.getElementById(`popup-${index}`);
+                if (popup) {
+                    popup.style.display = "none";
+                    syncAllPopupsToForm();
+                }
+            }
+
+            document.addEventListener('click', function(e) {
+                const popup = e.target.closest('.draggable-popup');
+                if (popup) {
+                    bringToFront(popup);
+                }
+            });
+
+            window.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('.draggable-popup').forEach((popup) => {
+                    if (popup.style.display === "block") {
+                        bringToFront(popup);
+                    }
+                });
+                syncAllPopupsToForm();
+            });
+        </script>
+    </body>
+</html>
