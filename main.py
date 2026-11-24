@@ -12,6 +12,7 @@ import traceback
 from typing import Optional
 from socket import gethostname
 import asyncio
+import math
 
 import pandas as pd
 import matplotlib
@@ -2876,7 +2877,7 @@ async def ws_traffic_report_monthly(websocket: WebSocket):
                     # True（無通信状態）かつサイズが7以上のグループ数をカウント
                     dead_counts = int(df_filtered[dead_zone_mask].groupby(dead_groups).size().gt(6).sum())
                 # ──────────────────────────────────────────────────────────────────
-
+                """
                 return {
                     "port_name": str(fname.replace(".csv", "")),
                     "filename": str(fname),
@@ -2891,6 +2892,33 @@ async def ws_traffic_report_monthly(websocket: WebSocket):
                     "dead_count_30m": dead_counts,    # 👈 フロント受渡用
                     "desc": str(info_dic.get(fname.replace(".csv", ""), {}).get("desc", "") if isinstance(info_dic.get(fname.replace(".csv", "")), dict) else info_dic.get(fname.replace(".csv", ""), ""))
                 }
+                """
+
+
+
+                # 💡 【追加】NaN や Inf を確実に 0.0 に変換する安全関数
+                def safe_float(val) -> float:
+                    if val is None or pd.isna(val):
+                        return 0.0
+                    f_val = float(val)
+                    return 0.0 if (math.isnan(f_val) or math.isinf(f_val)) else f_val
+
+                return {
+                    "port_name": str(fname.replace(".csv", "")),
+                    "filename": str(fname),
+                    # 💡 【修正箇所】float(... or 0.0) を safe_float(...) に置き換え
+                    "max_in": safe_float(df_filtered["bps_A"].max()) / 1_000_000,
+                    "max_out": safe_float(df_filtered["bps_B"].max()) / 1_000_000,
+                    "avg_in": safe_float(df_filtered["bps_A"].mean()) / 1_000_000,
+                    "avg_out": safe_float(df_filtered["bps_B"].mean()) / 1_000_000,
+                    "total_in_gb": safe_float(df_filtered["差分A"].sum()) / (1024 * 1024 * 1024),
+                    "total_out_gb": safe_float(df_filtered["差分B"].sum()) / (1024 * 1024 * 1024),
+                    "over_80_time": over_80_time_str,
+                    "burst_count_30m": burst_counts,
+                    "dead_count_30m": dead_counts,
+                    "desc": str(info_dic.get(fname.replace(".csv", ""), {}).get("desc", "") if isinstance(info_dic.get(fname.replace(".csv", "")), dict) else info_dic.get(fname.replace(".csv", ""), ""))
+                }
+
             except Exception as e:
                 print(f"❌ ポート {fname} の解析中にエラーが発生したためスキップします: {e}")
                 return None
