@@ -106,10 +106,12 @@
                                     <td class="metric-val text-secondary">{{ "{:,.2f}".format(port.total_out_gb) }}</td>
                                     <!-- 単日・詳細への動的リンク -->
                                     <td class="text-center no-print">
-                                        <a href="/plot?base_id={{ base_id }}&mode=range&start_dd={{ yyyymm[:4] }}-{{ yyyymm[4:] }}-01&end_dd={{ yyyymm[:4] }}-{{ yyyymm[4:] }}-31&switch={{ switch }}&filename={{ port.filename }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}&cols=1"
+                                        <a href="/plot?base_id={{ base_id }}&mode=range&start_dd={{ yyyymm[:4] }}-{{ yyyymm[4:] }}-01&end_dd={{ yyyymm[:4] }}-{{ yyyymm[4:] }}-{{ last_day }}&switch={{ switch }}&filename={{ port.filename }}&start_hour={{ start_hour }}&end_hour={{ end_hour }}&cols=1"
                                            class="btn btn-xs btn-outline-dark px-2 py-0"
                                            style="font-size:0.75rem"
                                            target="_blank">📈 期間グラフ</a>
+
+
                                     </td>
                                 </tr>
                             {% endfor %}

@@ -2580,6 +2580,7 @@ async def traffic_report(
         },
     )
 
+import calendar
 @app.get("/report_monthly", response_class=HTMLResponse)
 async def traffic_report_monthly(
     request: Request,
@@ -2699,12 +2700,17 @@ async def traffic_report_monthly(
     results = await asyncio.gather(*tasks)
     report_data = natsorted([r for r in results if r is not None], key=lambda x: x["port_name"])
 
+    year_int = int(yyyymm[:4])
+    month_int = int(yyyymm[4:])
+    last_day = calendar.monthrange(year_int, month_int)[1] # 11月なら 30 が返る
+
     return templates.TemplateResponse(
         request=request,
         name="report_monthly.html",
         context={
             "base_id": base_id,
             "yyyymm": yyyymm,
+            "last_day": last_day,
             "switch": switch,
             "start_hour": start_hour,
             "end_hour": end_hour,
