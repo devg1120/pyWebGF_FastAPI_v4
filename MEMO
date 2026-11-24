@@ -25,3 +25,11 @@ sudo yum install -y vlgothic-fonts ipa-gothic-fonts ipa-pgothic-fonts
 rm -rf ~/.cache/matplotlib
 
 
+
+HOSTNAME: mokka21
+/usr/local/lib/python3.10/site-packages/polars/meta/build.py:5: UserWarning: Polars binary is missing!
+  from polars._utils.polars_version import get_polars_version
+
+pip install polars-lts-cpu
+
+

@@ -65,6 +65,7 @@ templates.env.filters["urldecode"] = urllib.parse.unquote
 # ─── 💡 【マルチ化】動的切替用のマッピング辞書 ───
 BASE_DIRS = {
     # "default": "./test_data/test1",
+    "sc": "/sclog/tmp/_snmp_v2/data",
     "test1": "./test_data/test1",
     "test2": "./test_data/test2",
     # "test3": "./test_data/test3",
